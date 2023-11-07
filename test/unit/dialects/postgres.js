@@ -145,4 +145,34 @@ describe('Postgres Unit Tests', function () {
       knexInstance.destroy();
     });
   });
+
+  it('Doesn\'t replace escaped question marks in raw query operator', () => {
+    const knexInstance = knex({
+      client: 'postgresql',
+      connection: {},
+    });
+    return knexInstance.raw('select 1 as test where r \\?| ARRAY[1, 2]').then((result) => {
+      sinon.assert.calledOnce(querySpy);
+      sinon.assert.calledWithExactly(
+        querySpy,
+        {
+          text: 'select 1 as test where r ?| ARRAY[1, 2]',
+          values: [],
+        },
+        sinon.match.func
+      );
+      knexInstance.destroy();
+    });
+  });
+
+  it('Doesn\'t replace escaped question marks as an operator in where', () => {
+    const knexInstance = knex({
+      client: 'postgresql',
+      connection: {},
+    });
+    const sql = knexInstance.from('projects').where('jsonb_column', '?', 'json_key').toSQL();
+    expect(sql.sql).to.equal(
+      'select * from "projects" where "jsonb_column" ? \'json_key\''
+    );
+  });
 });
